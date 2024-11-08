@@ -9,10 +9,14 @@ import numpy as np
 import os
 
 app = FastAPI()
+
+# Mount static folder for CSS, JS, etc.
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Set up Jinja2 templates
 templates = Jinja2Templates(directory="templates")
 
-# Load the pre-trained model
+# Load the pre-trained model and scaler
 model_path = 'models/gradient_model2.pkl'
 scaler_path = 'models/scaler2.pkl'
 
@@ -23,10 +27,7 @@ else:
     model = None
     scaler = None
 
-# Initialize Jinja2 templates
-templates = Jinja2Templates(directory="templates")
-
-# Route to serve the HTML form
+# Route to serve the home page (index.html)
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
@@ -66,7 +67,7 @@ async def predict(
     print("Received input data:", input_data)
 
     try:
-        # Create a pandas DataFrame with appropriate columns
+        # Create a pandas DataFrame with the input data
         features_df = pd.DataFrame([input_data])
 
         # Scale the input data using the scaler
@@ -80,8 +81,10 @@ async def predict(
         print("Error in prediction:", e)
         raise HTTPException(status_code=500, detail="Prediction failed")
 
+    # Generate study recommendations based on the input data
     recommendations = generate_recommendations(input_data)
-     # Pass prediction and recommendations to the template for rendering
+
+    # Pass prediction and recommendations to the results page
     return templates.TemplateResponse("results.html", {
         "request": request,
         "result_data": {"prediction": predicted_class, "recommendations": recommendations}
@@ -91,7 +94,7 @@ async def predict(
 def generate_recommendations(input_data):
     recommendations = []
 
-    # Study time recommendation based on condition
+    # Study time recommendation based on the input data
     if input_data.get('studytime', 0) < 1:
         recommendations.append("Improve on studying time.")
     else:
@@ -115,14 +118,9 @@ def generate_recommendations(input_data):
     else:
         recommendations.append("Encourage the student to study independently or with a peer group.")
 
-
     return recommendations
 
+# To run the FastAPI app, we use Uvicorn
+# If running directly (not using gunicorn), uncomment this line below:
+    uvicorn.run(app, host="0.0.0.0", port=10000)
 
-    #return JSONResponse({
-     #   'prediction': predicted_class,
-      #  'recommendations': recommendations
-    #})
-
-if __name__ == "__main__":
-    app.run(debug=True)
